@@ -14,7 +14,6 @@ function App() {
     setEditingIndex(null)
   }
 
-  // 指定した枠を空(null)に戻す
   const handleRemove = (index) => {
     setSlots((prev) => prev.map((s, i) => (i === index ? null : s)))
   }
@@ -23,18 +22,22 @@ function App() {
   const filledCount = selectedIds.length
   const isComplete = filledCount === 5
 
-  const handleCreate = () => {
-    setShowPreview(true)
-  }
-
   return (
     <main className="app">
-      <h1>アニメ5選</h1>
-      <p>
-        {isComplete
-          ? '5作品そろいました！'
-          : `好きなアニメを選んでください（あと${5 - filledCount}作品）`}
-      </p>
+      <header className="hero">
+        <p className="eyebrow">MY FAVORITE ANIME</p>
+        <h1>アニメ5選</h1>
+        <p className="lead">
+          好きなアニメを5つ選んで、シェアしたくなる1枚のカードをつくろう。
+        </p>
+      </header>
+
+      <div className="progress">
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${filledCount * 20}%` }} />
+        </div>
+        <span className="progress-text">{filledCount} / 5</span>
+      </div>
 
       <SlotGrid
         slots={slots}
@@ -42,13 +45,24 @@ function App() {
         onSlotRemove={handleRemove}
       />
 
-      <button
-        className="create-button"
-        disabled={!isComplete}
-        onClick={handleCreate}
-      >
-        カードを作る
-      </button>
+      <div className="actions">
+        <button
+          className="create-button"
+          disabled={!isComplete}
+          onClick={() => setShowPreview(true)}
+        >
+          {isComplete ? 'カードを作る' : `あと${5 - filledCount}作品`}
+        </button>
+      </div>
+
+      <footer className="footer">
+        <p>
+          Anime data provided by{' '}
+          <a href="https://anilist.co" target="_blank" rel="noopener noreferrer">
+            AniList
+          </a>
+        </p>
+      </footer>
 
       {editingIndex !== null && (
         <SearchModal
@@ -57,6 +71,7 @@ function App() {
           onClose={() => setEditingIndex(null)}
         />
       )}
+
       {showPreview && (
         <CardPreview slots={slots} onClose={() => setShowPreview(false)} />
       )}

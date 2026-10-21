@@ -2,16 +2,21 @@ import { useEffect, useState } from 'react'
 import { drawCard } from '../utils/drawCard'
 import { themes, defaultTheme } from '../themes'
 
+const SHARE_TEXT = '好きなアニメ5選を作りました！'
+const HASHTAG = 'アニメ5選'
+
 function CardPreview({ slots, onClose }) {
   const [theme, setTheme] = useState(defaultTheme)
   const [dataUrl, setDataUrl] = useState(null)
   const [blob, setBlob] = useState(null)
   const [status, setStatus] = useState('loading') // 'loading' | 'done' | 'error'
+  const [copyStatus, setCopyStatus] = useState('idle') // 'idle' | 'done' | 'error'
 
   useEffect(() => {
     let cancelled = false
-    setStatus('loading') // テーマを切り替えたときも「作成中」を出す
+    setStatus('loading')
     setBlob(null)
+    setCopyStatus('idle')
 
     drawCard(slots, theme)
       .then((canvas) => {
@@ -32,20 +37,50 @@ function CardPreview({ slots, onClose }) {
     }
   }, [slots, theme])
 
+  // スマホ：OSの共有画面を開く（Xのアプリなどを選べる）
   const handleShare = async () => {
     const file = new File([blob], `anime5-${theme.id}.png`, { type: 'image/png' })
     try {
-      await navigator.share({ files: [file] })
+      await navigator.share({
+        files: [file],
+        text: `${SHARE_TEXT} #${HASHTAG}`,
+      })
     } catch (err) {
       if (err.name !== 'AbortError') console.error(err) // キャンセルは無視
     }
   }
 
-  // この端末・ブラウザがファイル共有に対応しているときだけ、ボタンを出す
+  // PC：画像をクリップボードにコピーする
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      setCopyStatus('done')
+    } catch (err) {
+      console.error(err)
+      setCopyStatus('error')
+    }
+  }
+
+  // この端末・ブラウザがファイル共有に対応しているときだけ、共有ボタンを出す
   const canShare =
     blob &&
     typeof navigator.canShare === 'function' &&
     navigator.canShare({ files: [new File([blob], 'a.png', { type: 'image/png' })] })
+
+  // 共有ボタンが出ない端末（主にPC）で、コピーボタンを出す
+  const canCopy =
+    blob &&
+    !canShare &&
+    typeof ClipboardItem !== 'undefined' &&
+    navigator.clipboard &&
+    typeof navigator.clipboard.write === 'function'
+
+  // Xの投稿画面を開くURL（文章・URL・ハッシュタグだけ渡せる）
+  const tweetUrl =
+    'https://x.com/intent/tweet' +
+    `?text=${encodeURIComponent(SHARE_TEXT)}` +
+    `&url=${encodeURIComponent(window.location.origin)}` +
+    `&hashtags=${encodeURIComponent(HASHTAG)}`
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -55,7 +90,6 @@ function CardPreview({ slots, onClose }) {
           <button onClick={onClose}>閉じる</button>
         </div>
 
-        {/* テーマが2つ以上あるときだけ、選択ボタンを出す */}
         {themes.length > 1 && (
           <div className="theme-picker">
             {themes.map((t) => (
@@ -78,21 +112,52 @@ function CardPreview({ slots, onClose }) {
         {status === 'done' && (
           <>
             <img className="preview-image" src={dataUrl} alt="完成したカード" />
-            <a
-              className="download-link"
-              href={dataUrl}
-              download={`anime5-${theme.id}.png`}
-            >
-              PNGで保存
-            </a>
-            {canShare && (
-              <button className="share-button" onClick={handleShare}>
-                共有・写真に保存
-              </button>
+
+            <div className="share-actions">
+              <a
+                className="download-link"
+                href={dataUrl}
+                download={`anime5-${theme.id}.png`}
+              >
+                PNGで保存
+              </a>
+
+              {canShare && (
+                <button className="share-button" onClick={handleShare}>
+                  共有・写真に保存
+                </button>
+              )}
+
+              {canCopy && (
+                <button className="share-button" onClick={handleCopy}>
+                  画像をコピー
+                </button>
+              )}
+
+              <a
+                className="x-link"
+                href={tweetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Xで投稿
+              </a>
+            </div>
+
+            {copyStatus === 'done' && (
+              <p className="hint">
+                コピーしました。Xの投稿画面で、貼り付け（Ctrl + V）してください。
+              </p>
             )}
+            {copyStatus === 'error' && (
+              <p className="hint">
+                コピーできませんでした。「PNGで保存」した画像を、投稿に添付してください。
+              </p>
+            )}
+
             <p className="hint">
               スマホで写真に保存するには、画像を長押しして「"写真"に追加」を選んでください。
-              「PNGで保存」を押すと、ファイルアプリに保存されます。
+              「Xで投稿」では画像は自動で付かないので、先に画像を保存するかコピーしてください。
             </p>
           </>
         )}
