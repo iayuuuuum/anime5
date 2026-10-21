@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/anilist-img/:path*",
+      "destination": "https://s4.anilist.co/:path*"
+    }
+  ]
+}
